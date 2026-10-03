@@ -110,6 +110,14 @@ export function createApp(dataDir = process.env.SCORE_DATA_DIR || path.join(root
     fs.writeFileSync(marker+'.tmp',JSON.stringify({...active,current:active.previous,previous:null}));fs.renameSync(marker+'.tmp',marker);
     res.json({message:'이전 프로그램으로 돌아갑니다. 악보와 콘티 데이터는 현재 상태를 유지합니다.'});setTimeout(()=>process.exit(75),1000);
   });
+  app.put('/api/scores/:id/favorite', (req, res) => {
+    const score = state.scores.find(s => s.id === req.params.id);
+    if (!score) return res.status(404).json({error:'악보를 찾을 수 없습니다.'});
+    if (typeof req.body.favorite !== 'boolean') return res.status(400).json({error:'즐겨찾기 값이 올바르지 않습니다.'});
+    const updated = {...score, favorite:req.body.favorite};
+    save({...state, scores:state.scores.map(s => s.id === score.id ? updated : s)});
+    res.json(updated);
+  });
   const supported = /\.(pdf|png|jpe?g|xml|musicxml)$/i;
   function sourceFolder() {
     const folder = state.settings?.sourceFolder;

@@ -32,8 +32,14 @@ test('local library: import, durable independent copy, duplicate entries, valida
     assert.equal((await (await fetch(base+'/api/state')).json()).scores.length,1);
     fs.unlinkSync(path.join(source,'테스트.pdf'));
     assert.equal((await fetch(base+`/api/scores/${score.id}/file`)).status,200);
+    assert.equal((await call(`/api/scores/${score.id}/favorite`,'PUT',{favorite:'yes'})).status,400);
+    assert.equal((await call('/api/scores/missing/favorite','PUT',{favorite:true})).status,404);
+    assert.equal((await call(`/api/scores/${score.id}/favorite`,'PUT',{favorite:true})).status,200);
     await stop(); base = await start(); const restored = await (await fetch(base+'/api/state')).json();
     assert.equal(restored.scores.length,1); assert.equal(restored.playlists[0].items.length,2); assert.equal(restored.progress[list.id].page,2);
+    assert.equal(restored.scores[0].favorite,true);
+    assert.equal((await call(`/api/scores/${score.id}/favorite`,'PUT',{favorite:false})).status,200);
+    assert.equal((await (await fetch(base+'/api/state')).json()).scores[0].favorite,false);
     assert.equal(restored.settings.sourceFolder,fs.realpathSync(source));
   } finally { await stop(); fs.rmSync(parent,{recursive:true,force:true}); }
 });

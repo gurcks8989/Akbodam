@@ -7,6 +7,18 @@ test('offline local workflow: PDF, insertion, duplicate song, restore, image and
   await page.getByRole('button',{name:'첫 악보 가져오기'}).click();
   await page.locator('#files').setInputFiles([{name:'첫번째 악보.pdf',mimeType:'application/pdf',buffer:pdfFixture()},{name:'멜로디.musicxml',mimeType:'application/xml',buffer:Buffer.from(xmlFixture)},{name:'사진.png',mimeType:'image/png',buffer:pngFixture}]);
   await expect(page.locator('#library-status')).toContainText('3개 파일');
+  const star=page.getByRole('button',{name:'첫번째 악보 즐겨찾기',exact:true});
+  await star.click(); await expect(star).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'★ 즐겨찾기',exact:true}).click();
+  await expect(page.locator('.library-row')).toHaveCount(1);
+  await page.locator('#search').fill('사진'); await expect(page.locator('.library-row')).toHaveCount(0);
+  await page.locator('#search').fill('');
+  await page.reload(); await page.locator('#library-open').click();
+  await expect(star).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'★ 즐겨찾기',exact:true}).click();
+  await star.click(); await expect(page.locator('.library-row')).toHaveCount(0);
+  await page.getByRole('button',{name:'전체 악보',exact:true}).click();
+  await expect(page.locator('.library-row')).toHaveCount(3);
   await page.locator('.library-row').filter({hasText:'첫번째 악보'}).getByRole('button',{name:'악보 보기',exact:true}).click();
   await expect(page.locator('#stage canvas')).toBeVisible();
   await expect(page.locator('#stage')).toHaveClass(/single-page/);

@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const escape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 let state, listId, currentId, page = 1, pages = 0, zoom = 1, documentData, token = 0, rendererPromise, nameMode, busy = false, toastTimer;
 let standaloneScore = null;
+let favoritesOnly = false;
 let rotated = false, beforeRotation = null;
 let spread = localStorage.getItem('on-eum-spread') === '2';
 let viewMode = localStorage.getItem('on-eum-view-mode') || 'pages';
@@ -73,8 +74,10 @@ function updateControls() {
 }
 function drawLibrary() {
   const q = $('search').value.trim().toLocaleLowerCase();
-  const scores = state.scores.filter(s => s.title.toLocaleLowerCase().includes(q));
-  $('library-items').innerHTML = scores.length ? scores.map(s => `<div class="library-row"><div class="document-cover" data-preview="${s.id}" aria-hidden="true"><span>${{pdf:"PDF",image:"IMAGE",musicxml:"MUSICXML"}[s.kind]}</span><div class="cover-staves">𝄞<br>──────<br>──────<br>──────</div></div><div class="library-info"><strong>${escape(s.title)}</strong><small>${{pdf:'PDF',image:'이미지',musicxml:'MusicXML'}[s.kind]} · ${(s.bytes / 1024 / 1024).toFixed(1)} MB · 기기에 저장됨</small></div><div class="library-actions"><button data-view="${s.id}">악보 보기</button><button data-add="${s.id}">＋ 담기</button></div></div>`).join('') : '<p class="dialog-note">'+ (q ? '검색 결과가 없습니다.' : '아직 악보가 없습니다. 다운로드한 파일을 가져오세요.') +'</p>';
+  const scores = state.scores.filter(s => s.title.toLocaleLowerCase().includes(q) && (!favoritesOnly || s.favorite));
+  $('library-all').setAttribute('aria-pressed',String(!favoritesOnly));
+  $('library-favorites').setAttribute('aria-pressed',String(favoritesOnly));
+  $('library-items').innerHTML = scores.length ? scores.map(s => `<div class="library-row"><button class="favorite-toggle" data-favorite="${s.id}" aria-pressed="${Boolean(s.favorite)}" aria-label="${escape(s.title)} 즐겨찾기" title="${s.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button><div class="document-cover" data-preview="${s.id}" aria-hidden="true"><span>${{pdf:"PDF",image:"IMAGE",musicxml:"MUSICXML"}[s.kind]}</span><div class="cover-staves">𝄞<br>──────<br>──────<br>──────</div></div><div class="library-info"><strong>${escape(s.title)}</strong><small>${{pdf:'PDF',image:'이미지',musicxml:'MusicXML'}[s.kind]} · ${(s.bytes / 1024 / 1024).toFixed(1)} MB · 기기에 저장됨</small></div><div class="library-actions"><button data-view="${s.id}">악보 보기</button><button data-add="${s.id}">＋ 담기</button></div></div>`).join('') : '<p class="dialog-note">'+ (q ? '검색 결과가 없습니다.' : favoritesOnly ? '즐겨찾는 악보가 없습니다. 전체 악보에서 별표를 눌러주세요.' : '아직 악보가 없습니다. 다운로드한 파일을 가져오세요.') +'</p>';
   refreshPreviews($('library-items'));
 }
 
@@ -204,13 +207,15 @@ function activateList(id) { listId = id; localStorage.setItem('on-eum-list',id);
 $('library-open').onclick = $('add-song').onclick = $('first-import').onclick = openLibrary;
 $('library-close').onclick = () => $('library-dialog').close();
 $('search').oninput = drawLibrary;
+$('library-all').onclick = () => { favoritesOnly=false; drawLibrary(); };
+$('library-favorites').onclick = () => { favoritesOnly=true; drawLibrary(); };
 $('files').onchange = () => guarded(async () => {
   const files = [...$('files').files]; if (!files.length) return;
   $('library-status').textContent = '파일을 기기에 복사하고 있습니다…';
   try { const data = new FormData(); files.forEach(file => data.append('files',file)); const added = await api('/api/scores','POST',data); state.scores.push(...added.filter(s => !state.scores.some(old => old.id === s.id))); $('search').value = ''; drawLibrary(); $('library-status').textContent = `${added.length}개 파일을 보관했습니다. ‘담기’를 눌러 콘티에 추가하세요.`; }
   catch (e) { $('library-status').textContent = e.message; throw e; } finally { $('files').value = ''; }
 });
-$('library-items').onclick = e => { const view = e.target.closest('[data-view]'); if (view) { const score = state.scores.find(s => s.id === view.dataset.view); $('library-dialog').close(); selectItem(null, undefined, score); return; } const button = e.target.closest('[data-add]'); if (button) guarded(() => addScore(button.dataset.add)); };
+$('library-items').onclick = e => { const favorite=e.target.closest('[data-favorite]'); if(favorite) { guarded(async()=>{ const score=state.scores.find(s=>s.id===favorite.dataset.favorite); const saved=await api(`/api/scores/${score.id}/favorite`,'PUT',{favorite:!score.favorite}); state.scores=state.scores.map(s=>s.id===saved.id?saved:s); drawLibrary(); }); return; } const view = e.target.closest('[data-view]'); if (view) { const score = state.scores.find(s => s.id === view.dataset.view); $('library-dialog').close(); selectItem(null, undefined, score); return; } const button = e.target.closest('[data-add]'); if (button) guarded(() => addScore(button.dataset.add)); };
 $('queue').onclick = e => {
   const select = e.target.closest('[data-select]'); if (select) { selectItem(select.dataset.select); return; }
   const move = e.target.closest('[data-move]'), remove = e.target.closest('[data-remove]');
