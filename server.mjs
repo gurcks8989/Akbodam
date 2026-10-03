@@ -15,6 +15,7 @@ export function createApp(dataDir = process.env.SCORE_DATA_DIR || path.join(root
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : {
     version: 1, scores: [], playlists: [{ id: randomUUID(), name: '나의 첫 콘티', items: [] }], progress: {}
   };
+  state.settings = {updateRepository:'https://github.com/gurcks8989/Akbodam', ...state.settings};
   function save(next) {
     const tmp = statePath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(next, null, 2));

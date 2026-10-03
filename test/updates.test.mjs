@@ -10,13 +10,12 @@ test('update repository validation and numeric stable-version ordering',()=>{
  for(const bad of ['file:///private','https://github.com.evil/owner/repo','https://token@github.com/a/b','git@github.com:a/b','https://github.com/a/b/tree/main']) assert.throws(()=>repositoryUrl(bad));
  assert.equal(compareVersions('v0.10.0','0.9.9'),1);assert.equal(compareVersions('1.0.0','v1.0.0'),0);assert.throws(()=>compareVersions('v2.0.0-beta','1.0.0'));
 });
-test('backup preserves scores, settings and setlists independently; missing repo cannot install',async()=>{
+test('backup preserves scores, settings and setlists independently; unchecked release cannot install',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'akbodam-update-test-'));
  const server=createApp(dir).listen(0,'127.0.0.1'); await new Promise(r=>server.once('listening',r));
  const base='http://127.0.0.1:'+server.address().port;
  try {
-  const status=await (await fetch(base+'/api/updates')).json();assert.equal(status.currentVersion,'0.1.0');assert.equal(status.repository,'');
-  assert.equal((await fetch(base+'/api/updates/check',{method:'POST'})).status,400);
+  const status=await (await fetch(base+'/api/updates')).json();assert.equal(status.currentVersion,JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url))).version);assert.equal(status.repository,'https://github.com/gurcks8989/Akbodam');
   assert.equal((await fetch(base+'/api/updates/install',{method:'POST'})).status,409);
   assert.equal((await fetch(base+'/api/updates/repository',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({repository:'https://github.com/example/akbodam'})})).status,200);
   fs.writeFileSync(path.join(dir,'scores','sample.pdf'),'example-original');
