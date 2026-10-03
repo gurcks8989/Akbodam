@@ -17,6 +17,10 @@ npm start
 
 브라우저에서 `http://127.0.0.1:4173`을 여세요. `PORT` 환경 변수로 포트를 바꿀 수 있습니다. 파이에서는 x86/macOS의 node_modules를 복사하지 말고 파이에서 `npm ci`를 실행하세요.
 
+## 로고와 아이콘
+
+앱 상단과 Linux 실행 아이콘은 `public/logo.png`를 사용합니다. 브라우저 탭에는 16~256px 크기를 포함한 `public/favicon.ico`, 홈 화면용 아이콘에는 `public/apple-touch-icon.png`를 연결했습니다. 기존 Linux 실행 아이콘에 반영하려면 해당 설치 스크립트를 다시 실행하세요.
+
 ## 사용 순서
 
 1. 일반 브라우저에서 악보를 검색하고 다운로드합니다.

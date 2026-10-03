@@ -9,6 +9,7 @@ cat > "$HOME/.local/share/applications/akbodam.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=악보담
+Icon=$APP_DIR/public/logo.png
 Comment=이 기기에 저장된 악보와 콘티
 Exec="$APP_DIR/scripts/launch-pi.sh"
 Terminal=false

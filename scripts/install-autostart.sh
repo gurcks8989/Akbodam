@@ -32,6 +32,7 @@ cat > "$HOME/.config/autostart/akbodam.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=악보담
+Icon=$APP_DIR/public/logo.png
 Exec=/usr/bin/env "PATH=$PATH" /bin/bash "$APP_DIR/scripts/launch-pi.sh" --kiosk
 Terminal=false
 DESKTOP
