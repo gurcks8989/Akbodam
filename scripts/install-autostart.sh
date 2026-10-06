@@ -21,6 +21,10 @@ for value in "$APP_DIR" "$NODE_BIN" "$PATH"; do
   [[ "$value" != *'"'* && "$value" != *'`'* && "$value" != *'$'* && "$value" != *'%'* && "$value" != *'\'* && "$value" != *$'\n'* ]] || { echo '설치 경로에 특수문자를 사용할 수 없습니다.'; exit 1; }
 done
 cd "$APP_DIR"
+# Raspberry Pi's automatic desktop login can leave its keyring unavailable.
+if [[ -r /proc/device-tree/model ]] && grep -q 'Raspberry Pi' /proc/device-tree/model; then
+  "$NODE_BIN" "$APP_DIR/scripts/configure-browser.mjs" "$APP_DIR/data"
+fi
 npm ci --omit=dev --ignore-scripts
 mkdir -p "$HOME/.config/systemd/user" "$HOME/.config/autostart"
 cat > "$HOME/.config/systemd/user/akbodam.service" <<UNIT

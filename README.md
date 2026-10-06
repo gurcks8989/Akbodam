@@ -175,6 +175,7 @@ v0.3.2 이전 설치 도구의 `WorkingDirectory` 따옴표 표기를 수정했�
 
 ```sh
 curl -fL https://raw.githubusercontent.com/gurcks8989/Akbodam/main/scripts/install-autostart.sh -o scripts/install-autostart.sh
+curl -fL https://raw.githubusercontent.com/gurcks8989/Akbodam/main/scripts/configure-browser.mjs -o scripts/configure-browser.mjs
 bash scripts/install-autostart.sh
 ```
 
@@ -221,3 +222,9 @@ Noto CJK·나눔 폰트와 Fcitx 5 한글 입력기, GTK/Qt 연동 모듈을 설
 한 라즈베리 실기기에서 서버는 응답하지만 Chromium이 Untitled/Loading에 머무는 현상을 재현했습니다. 전용 프로필에서 `--password-store=basic`으로 실행했을 때 정상 화면 표시를 확인했습니다. 같은 증상이 확인된 기기에 한해 `data/browser-flags.txt`에 이 옵션을 한 줄로 넣을 수 있습니다. 기본으로 강제하지 않습니다. 이 옵션은 OS 키링 기반 암호화를 사용하지 않으므로 해당 전용 프로필에는 웹사이트 비밀번호를 저장하지 마세요. 일반 브라우저 프로필과 분리되며, 되돌리려면 옵션 줄을 제거하고 악보담 브라우저를 다시 실행합니다.
 
 실행기는 Wayland 화면 환경을 감지하면 해당 백엔드를 선택합니다. 데스크톱 로그인 후 실행해야 하며 SSH의 화면 환경은 자동 추측하지 않습니다.
+
+### v0.3.7: Raspberry Pi 설치에 브라우저 수정 통합
+
+`setup-pi.sh` 또는 `install-autostart.sh`는 Raspberry Pi를 감지하면 확인된 키링 우회 설정을 악보담 전용 Chromium 프로필에 자동 적용합니다. 이 프로필의 비밀번호 저장과 브라우저 로그인을 끄고, 일반 Chromium 프로필은 수정하지 않습니다. 기존 환경에 재설치할 때에는 악보담 Chromium 창을 먼저 닫아 주세요. 실행 중인 프로필은 수정하지 않고 안내와 함께 중단합니다. 기존 프로필 설정은 백업하며 다른 설정은 보존합니다.
+
+앱 안의 네트워크 업데이트는 원래 설치 폴더의 자동 실행 스크립트를 교체하지 않습니다. 기존 기기에는 최신 설치 파일을 반영한 뒤 자동 실행 설치를 다시 실행해야 합니다. 현재 테스트한 라즈베리에는 v0.3.6 실행 스크립트와 동일한 호환 설정을 직접 적용했습니다. 정상 전체화면 표시는 확인했으며 재부팅 검증과 Squeekboard 한글 조합 입력 검증은 남아 있습니다.
