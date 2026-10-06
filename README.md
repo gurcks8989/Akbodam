@@ -114,8 +114,8 @@ bash scripts/install-autostart.sh
 
 이후 실행 순서는 다음과 같습니다.
 
-1. 기기 전원 켜기 → 데스크톱 자동 로그인
-2. 악보담 서버 자동 시작
+1. 기기 전원 켜기 → 악보담 서버 자동 시작
+2. 데스크톱 자동 로그인
 3. Chromium이 서버 준비를 기다린 뒤 악보담을 전체화면으로 표시
 
 npm이나 서버 실행 명령을 매번 입력할 필요가 없습니다. 서버와 브라우저는 같은 기기에서 실행되며 별도 서버 기기는 필요하지 않습니다. 최초 설치와 업데이트에는 인터넷이 필요하고, 설치된 악보 읽기는 오프라인에서 가능합니다. 자동 실행은 기본 주소 `http://127.0.0.1:4173`을 사용합니다.
@@ -179,3 +179,23 @@ bash scripts/install-autostart.sh
 ```
 
 수정된 도구는 서비스 등록 전에 systemd 설정 검증을 수행하며, 시작 실패 시 상태와 최근 로그를 표시합니다. 계속 실패하면 출력된 로그를 확인하세요.
+
+### 부팅 서버와 Chromium 실행 보완 (v0.3.4)
+
+자동 실행 설치 시 사용자 linger를 활성화해 데스크톱 로그인 전부터 서버를 시작합니다. 이 단계는 관리자 비밀번호를 요청할 수 있습니다. Chromium은 그래픽 데스크톱 로그인 후 실행되므로 전원만 켜서 화면까지 열려면 OS의 데스크톱 자동 로그인이 필요합니다.
+
+설치 도구는 nvm으로 설치한 Node.js를 자동으로 불러오고, 서비스 등록 후 실제 서버 응답까지 확인합니다. 브라우저 실행기는 터미널에 Node.js가 잡혀 있지 않아도 등록된 서비스를 사용할 수 있습니다. 서버가 준비된 뒤 Chromium을 열며, 실행 로그는 `data/browser-launcher.log`에 저장합니다.
+
+기존 설치를 고칠 때에는 다음 파일을 기존 프로젝트 폴더에서 갱신한 뒤 재등록하세요. 악보 데이터는 건드리지 않습니다.
+
+```sh
+(
+  set -e
+  for script in install-autostart.sh launch-pi.sh install-pi-launcher.sh; do
+    curl -fL "https://raw.githubusercontent.com/gurcks8989/Akbodam/v0.3.4/scripts/$script" -o "scripts/$script"
+  done
+  bash scripts/install-autostart.sh
+)
+```
+
+자동 실행 제거 도구는 악보담 서비스만 해제합니다. 다른 사용자 서비스가 사용할 수 있으므로 linger 설정 자체는 해제하지 않습니다. 라즈베리 실기기의 재부팅 검증은 별도로 필요합니다.
