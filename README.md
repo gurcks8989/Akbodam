@@ -199,3 +199,19 @@ bash scripts/install-autostart.sh
 ```
 
 자동 실행 제거 도구는 악보담 서비스만 해제합니다. 다른 사용자 서비스가 사용할 수 있으므로 linger 설정 자체는 해제하지 않습니다. 라즈베리 실기기의 재부팅 검증은 별도로 필요합니다.
+
+## 한글 폰트와 키보드 입력
+
+Raspberry Pi OS/Debian 데스크톱의 일반 사용자로 실행합니다. 앞에 sudo를 붙이지 마세요.
+
+```sh
+bash scripts/setup-korean.sh
+```
+
+Noto CJK·나눔 폰트와 Fcitx 5 한글 입력기, GTK/Qt 연동 모듈을 설치하고 사용자 입력기를 Fcitx 5로 선택합니다. 기존 입력기·폰트 설정은 홈 폴더의 `akbodam-korean-backup-*`에 백업합니다. 기존 Fcitx 입력기 목록은 덮어쓰지 않습니다. 최초 설정에서는 영문 US와 Hangul을 등록합니다.
+
+설치 후 재로그인 또는 재부팅하고, `fcitx5-configtool`에서 **Hangul(한글)**이 있는지 확인하세요. 기존 목록에 없으면 추가 버튼에서 현재 언어만 표시 옵션을 해제하고 Hangul을 찾아 추가합니다. 기본 전환은 **Ctrl+Space**이며 한/영 키는 입력기 설정에서 지정할 수 있습니다. Chromium의 악보 제목 검색창에서 실제 입력을 확인하세요.
+
+이 스크립트는 물리 키보드의 한글 입력과 폰트 표시를 준비합니다. OS 표시 언어, 물리 키보드 배열, 터치 화상 키보드는 변경하지 않습니다. PDF에 이미지로 들어간 글자나 자체 내장 폰트는 OS 폰트 설치로 바뀌지 않습니다. Wayland의 Chromium 입력기 연동은 데스크톱·브라우저 설정에 따라 별도 확인이 필요합니다. 관련 공식 문서: [Fcitx 5 설정](https://fcitx-im.org/wiki/Setup_Fcitx_5), [Wayland 연동](https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland/en).
+
+스크립트 문법과 macOS에서의 실행 차단을 확인했습니다. 라즈베리 실기기의 한글 조합 입력은 아직 검증하지 않았습니다. 기존 Chromium 흰 화면 문제를 해결하는 스크립트는 아닙니다.
