@@ -238,3 +238,11 @@ bash scripts/fix-squeekboard-layout.sh
 ```
 
 기본 원본은 `/usr/share/misc/squeekboard/keyboards/kr.yaml`이며 다른 YAML 경로를 첫 인자로 줄 수 있습니다. 기존 파일과 입력 언어 설정은 홈 폴더에 백업합니다. 숫자·PIN·터미널 전용 자판은 유지합니다. OS 패키지 업데이트가 사용자 추가 파일을 바꾼 경우 다시 실행할 수 있습니다. 이 수정은 자판 표시의 영문 대체를 해결하며, 기존 YAML의 키 동작과 한글 조합 엔진은 변경하지 않습니다.
+
+### Squeekboard 이모지 메뉴 숨기기
+
+```sh
+bash scripts/hide-squeekboard-emoji.sh
+```
+
+Squeekboard의 이모지 메뉴 항목만 사용자 GResource 오버레이로 숨깁니다. 언어 선택, Terminal, 키보드 설정은 유지하고 시스템 실행 파일은 수정하지 않습니다. 기존 설정은 홈 폴더에 백업합니다. 사용자 앱 메뉴 실행기와 labwc 환경에 적용하므로 설치 후 로그아웃·로그인하면 패널에서 다시 실행할 때도 유지됩니다. 현재 실행 중인 키보드에는 기존 프로세스를 종료한 뒤 `~/.local/bin/akbodam-squeekboard`로 실행하면 적용됩니다. 다른 데스크톱 환경은 별도 환경 변수 등록이 필요합니다.
