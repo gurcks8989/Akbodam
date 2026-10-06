@@ -24,12 +24,23 @@ if ! curl --max-time 2 --silent --fail http://127.0.0.1:4173/api/state >/dev/nul
     nohup node bootstrap.mjs >> data/launcher.log 2>&1 &
   fi
 fi
+browser_options=(--no-first-run --noerrdialogs --user-data-dir="$APP_DIR/data/browser")
+if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then browser_options+=(--ozone-platform=wayland); fi
+if [[ -f "$APP_DIR/data/browser-flags.txt" ]]; then
+  while IFS= read -r option || [[ -n "$option" ]]; do
+    case "$option" in
+      --password-store=basic|--disable-gpu) browser_options+=("$option") ;;
+      ''|'#'*) ;;
+      *) echo "지원하지 않는 브라우저 옵션: $option"; exit 1 ;;
+    esac
+  done < "$APP_DIR/data/browser-flags.txt"
+fi
 for attempt in {1..60}; do
   if curl --max-time 2 --silent --fail http://127.0.0.1:4173/api/state >/dev/null; then
     if [[ "${1:-}" = --kiosk ]]; then
-      exec "$BROWSER_BIN" --kiosk --no-first-run --noerrdialogs --user-data-dir="$APP_DIR/data/browser" http://127.0.0.1:4173
+      exec "$BROWSER_BIN" "${browser_options[@]}" --kiosk http://127.0.0.1:4173
     fi
-    exec "$BROWSER_BIN" --app=http://127.0.0.1:4173
+    exec "$BROWSER_BIN" "${browser_options[@]}" --app=http://127.0.0.1:4173
   fi
   sleep 1
 done
