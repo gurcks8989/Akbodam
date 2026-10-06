@@ -18,7 +18,7 @@ cat > "$HOME/.config/systemd/user/akbodam.service" <<UNIT
 Description=Akbodam local sheet music reader
 [Service]
 Type=simple
-WorkingDirectory="$APP_DIR"
+WorkingDirectory=$APP_DIR
 ExecStart="$NODE_BIN" "$APP_DIR/bootstrap.mjs"
 Environment="PATH=$PATH"
 Environment="SCORE_DATA_DIR=$APP_DIR/data"
@@ -36,8 +36,15 @@ Icon=$APP_DIR/public/logo.png
 Exec=/usr/bin/env "PATH=$PATH" /bin/bash "$APP_DIR/scripts/launch-pi.sh" --kiosk
 Terminal=false
 DESKTOP
+if command -v systemd-analyze >/dev/null; then
+  systemd-analyze --user verify "$HOME/.config/systemd/user/akbodam.service"
+fi
 systemctl --user daemon-reload
-systemctl --user enable --now akbodam.service
+if ! systemctl --user enable --now akbodam.service; then
+  systemctl --user status akbodam.service --no-pager || true
+  journalctl --user -u akbodam.service -n 30 --no-pager || true
+  exit 1
+fi
 bash "$APP_DIR/scripts/install-pi-launcher.sh"
 echo '자동 실행을 등록했습니다. 데스크톱 로그인 시 악보담이 전체화면으로 열립니다.'
 echo '전원만 켜서 사용하려면 OS 설정에서 데스크톱 자동 로그인을 켜주세요.'

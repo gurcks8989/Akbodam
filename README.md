@@ -168,3 +168,14 @@ bash scripts/uninstall-autostart.sh
 macOS의 격리된 임시 데이터로 GitHub의 `v0.1.0`에서 `v0.2.0`으로 실제 다운로드·의존성 설치·백업·서버 재시작·콘티 보존을 확인했고, 이전 버전 복구도 확인했습니다. 일반 서버 테스트 4개와 브라우저 기능 테스트 1개가 통과했습니다. 실제 악보 폴더를 사용하는 선택적 테스트는 이번 실행에서 제외했습니다.
 
 Linux 설치 스크립트의 문법 검사는 완료했습니다. **라즈베리에서 전원을 켰을 때 자동 로그인 → 서버 시작 → 전체화면 표시까지의 실제 동작은 아직 기기 검증이 필요합니다.**
+
+### 자동 실행 등록에서 “bad unit file setting” 오류가 발생한 경우
+
+v0.3.2 이전 설치 도구의 `WorkingDirectory` 따옴표 표기를 수정했습니다. Node.js나 npm을 다시 설치할 필요는 없습니다. 기존 악보담 폴더에서 설치 스크립트만 갱신한 뒤 다시 실행하세요.
+
+```sh
+curl -fL https://raw.githubusercontent.com/gurcks8989/Akbodam/main/scripts/install-autostart.sh -o scripts/install-autostart.sh
+bash scripts/install-autostart.sh
+```
+
+수정된 도구는 서비스 등록 전에 systemd 설정 검증을 수행하며, 시작 실패 시 상태와 최근 로그를 표시합니다. 계속 실패하면 출력된 로그를 확인하세요.
