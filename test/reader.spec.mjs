@@ -130,8 +130,15 @@ test('offline local workflow: PDF, insertion, duplicate song, restore, image and
   await expect(page.locator('#stage .xml-page > svg')).toBeVisible({timeout:20000});
   await expect(page.locator('#score-title')).toHaveText('멜로디');
   await page.screenshot({path:'test-results/musicxml-desktop.png',fullPage:true});
-  await page.getByRole('button',{name:'2번 곡 위로',exact:true}).click();
+  const handle=page.getByRole('button',{name:'2번 곡 순서 변경',exact:true});
+  const from=await handle.boundingBox(),to=await page.locator('#queue li').first().boundingBox();
+  await page.mouse.move(from.x+from.width/2,from.y+from.height/2);
+  await page.mouse.down(); await page.mouse.move(to.x+20,to.y+5,{steps:10}); await page.mouse.up();
   await expect(page.locator('#queue .song-title').first()).toHaveText('멜로디');
+  await expect(page.locator('#toast')).toContainText('곡 순서를 변경');
+  await page.reload();
+  await expect(page.locator('#queue .song-title').first()).toHaveText('멜로디');
+  await expect(page.locator('#score-title')).toHaveText('멜로디');
   await expect(page.locator('#stage .xml-page > svg')).toBeVisible();
   await page.locator('.song-select').filter({hasText:'사진'}).click();
   await expect(page.locator('#stage img')).toBeVisible();

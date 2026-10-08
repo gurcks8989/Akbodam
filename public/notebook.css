@@ -10,3 +10,5 @@
 .library-filter{display:flex;gap:8px;margin-top:18px}.library-filter button{min-height:44px;font-size:13px;background:transparent;color:var(--soft)}.library-filter button[aria-pressed=true]{background:#3b5274;color:#e8f1ff}.library-row{position:relative}.favorite-toggle{position:absolute;z-index:1;right:8px;top:6px;width:44px;height:44px;min-height:44px;padding:10px;background:#253247;box-shadow:0 2px 7px #0004}.favorite-toggle svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7}.favorite-toggle[aria-pressed=true]{color:#ffd379}.favorite-toggle[aria-pressed=true] svg{fill:currentColor}
 
 .brand{display:inline-flex;align-items:center;gap:8px}.brand img{width:30px;height:30px;object-fit:contain;flex-shrink:0}
+
+.queue-actions .drag-handle{cursor:grab;touch-action:none;min-width:44px;min-height:44px;margin-right:auto}.drag-handle svg{width:20px;height:20px;pointer-events:none}.is-dragging,.is-dragging *{cursor:grabbing!important;user-select:none}.queue-item.dragging{background:#3a5377;border-color:#9fc6ff;box-shadow:0 5px 18px #0005;opacity:.85}.drag-handle:focus-visible{outline:2px solid var(--blue);outline-offset:2px}

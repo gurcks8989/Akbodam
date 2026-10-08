@@ -1,3 +1,4 @@
+import { installQueueDrag } from '/queue-drag.js';
 import * as pdfjs from '/vendor/pdf/build/pdf.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdf/build/pdf.worker.mjs';
 const $ = id => document.getElementById(id);
@@ -52,7 +53,7 @@ function drawLists() {
   $('playlist').innerHTML = state.playlists.map(p => `<option value="${p.id}">${escape(p.name)}</option>`).join(''); $('playlist').value = listId;
   const items = list().items;
   $('item-count').textContent = `${items.length}곡`;
-  $('queue').innerHTML = items.map((item, index) => `<li class="queue-item ${item.id === currentId ? 'active' : ''}" data-item="${item.id}"><button class="song-select" data-select="${item.id}" ${item.id === currentId ? 'aria-current="true"' : ''}><span class="score-preview" data-preview="${item.scoreId}"><span class="song-number">${String(index + 1).padStart(2, '0')}</span></span><span class="song-title">${escape(scoreOf(item)?.title || '악보 없음')}</span></button><div class="queue-actions"><button data-move="${item.id}" data-direction="-1" aria-label="${index + 1}번 곡 위로" ${index === 0 ? 'disabled' : ''}>↑</button><button data-move="${item.id}" data-direction="1" aria-label="${index + 1}번 곡 아래로" ${index === items.length - 1 ? 'disabled' : ''}>↓</button><button data-remove="${item.id}" title="콘티에서 제거 · 보관함 파일은 유지" aria-label="${index + 1}번 곡 콘티에서 빼기"> <svg class="remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg></button></div></li>`).join('');
+  $('queue').innerHTML = items.map((item, index) => `<li class="queue-item ${item.id === currentId ? 'active' : ''}" data-item="${item.id}"><button class="song-select" data-select="${item.id}" ${item.id === currentId ? 'aria-current="true"' : ''}><span class="score-preview" data-preview="${item.scoreId}"><span class="song-number">${String(index + 1).padStart(2, '0')}</span></span><span class="song-title">${escape(scoreOf(item)?.title || '악보 없음')}</span></button><div class="queue-actions"><button class="drag-handle" data-drag="${item.id}" aria-label="${index + 1}번 곡 순서 변경" title="드래그하여 순서 변경 · 방향키로 이동"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="8" cy="5" r="1.8"/><circle cx="16" cy="5" r="1.8"/><circle cx="8" cy="12" r="1.8"/><circle cx="16" cy="12" r="1.8"/><circle cx="8" cy="19" r="1.8"/><circle cx="16" cy="19" r="1.8"/></svg></button><button data-remove="${item.id}" title="콘티에서 제거 · 보관함 파일은 유지" aria-label="${index + 1}번 곡 콘티에서 빼기"> <svg class="remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg></button></div></li>`).join('');
   updateControls(); refreshPreviews($('queue'));
 }
 function updateControls() {
@@ -399,3 +400,15 @@ $('update-check').onclick=()=>guarded(async()=>{ $('update-status').textContent=
 $('update-backup').onclick=()=>guarded(async()=>{ $('update-status').textContent='데이터를 백업하고 있습니다…';await api('/api/updates/backup','POST');await refreshUpdatePanel();$('update-status').textContent='악보·콘티·설정 백업을 완료했습니다.'; });
 $('update-install').onclick=()=>guarded(async()=>{await api('/api/updates/install','POST');await refreshUpdatePanel();});
 $('update-rollback').onclick=()=>guarded(async()=>{await api('/api/updates/rollback','POST');$('update-status').textContent='이전 프로그램으로 재시작합니다…';updatePolling=setTimeout(pollUpdate,2000);});
+
+installQueueDrag($('queue'), {
+  snapshot: () => ({listId, ids:list().items.map(item=>item.id)}),
+  reset: () => drawLists(),
+  commit: (snapshot, ids) => guarded(async () => {
+    const current=state.playlists.find(p=>p.id===snapshot.listId);
+    if(listId!==snapshot.listId || !current || ids.length!==snapshot.ids.length || new Set(ids).size!==ids.length || ids.some(id=>!snapshot.ids.includes(id)) || current.items.map(i=>i.id).join()!==snapshot.ids.join()) { drawLists(); return; }
+    const next={...current,items:ids.map(id=>current.items.find(item=>item.id===id))};
+    try { await persistList(next); toast('곡 순서를 변경했습니다.'); }
+    catch(error) { drawLists(); throw error; }
+  })
+});
