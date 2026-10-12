@@ -47,3 +47,5 @@
 #queue {overflow:auto;min-height:0;align-content:start;}
 #queue-panel>.list-tools,#queue-panel>.section-line,#queue-panel>#playlist,#queue-panel>.add-wide,#queue-panel>h1 {flex-shrink:0;}
 @media(max-width:600px) {.sidebar{max-height:430px;}#page-thumbnails{max-height:260px;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));}}
+
+#phone-dialog{max-width:600px;}#phone-dialog>p{font-size:13px;line-height:1.7;}#phone-address{width:100%;margin:10px 0;}.phone-buttons{display:flex;gap:10px;margin:10px 0;}#phone-qr{display:block;margin:16px auto;border-radius:12px;max-width:100%;height:auto;}#phone-qr[hidden],#phone-stop[hidden]{display:none;}#phone-url{font-size:12px;text-align:center;overflow-wrap:anywhere;}#phone-received{list-style:none;padding:0;}#phone-received li{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #44516a;}#phone-received span{flex:1;overflow-wrap:anywhere;font-size:13px;}#phone-received button{font-size:12px;}#phone-open{white-space:nowrap;}

@@ -1,4 +1,5 @@
 import express from 'express';
+import { createPhoneTransfer } from './phone-transfer.mjs';
 import multer from 'multer';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,6 +58,9 @@ export function createApp(dataDir = process.env.SCORE_DATA_DIR || path.join(root
   }
   const currentVersion=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version;
   let updateJob={phase:'idle',message:''}, checkedRelease=null;
+  const phone=createPhoneTransfer({canReceive:()=>updateJob.phase!=='preparing',importFiles:file=>{
+    const before=new Set(state.scores.map(s=>s.id)); const [score]=importFiles([file]); return {score,duplicate:before.has(score.id)};
+  }});
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -67,6 +71,9 @@ export function createApp(dataDir = process.env.SCORE_DATA_DIR || path.join(root
     next();
   });
   app.use(express.json({ limit: '1mb' }));
+  app.get('/api/phone',(_req,res)=>res.json({...phone.status(),addresses:phone.addresses()}));
+  app.post('/api/phone',async(req,res)=>{try{res.json(await phone.start(req.body.address));}catch(e){res.status(400).json({error:e.code?'전송을 시작하지 못했습니다. Wi-Fi 연결과 방화벽을 확인해 주세요.':e.message});}});
+  app.delete('/api/phone',(_req,res)=>{phone.stop();res.json({active:false});});
   app.get('/api/state', (_req, res) => res.json(state));
   state.folders ||= [];
   app.post('/api/folders', (req,res) => {
