@@ -1,3 +1,4 @@
+import { installExport } from '/export.js';
 import { installNotes } from '/notes.js';
 import { installPhoneTransfer } from '/phone-transfer.js';
 import { installQueueDrag } from '/queue-drag.js';
@@ -471,3 +472,5 @@ installQueueDrag($('queue'), {
 });
 
 installPhoneTransfer({api,onReceived:()=>guarded(async()=>{const fresh=await api('/api/state');state.scores=fresh.scores;drawLibrary();}),onAdd:async id=>{let failure;await guarded(async()=>{try{await addScore(id);}catch(e){failure=e;throw e;}});if(failure)throw failure;}});
+
+installExport({api,getSelection:()=>({score:activeScore(),playlist:list(),scores:state.scores}),loadScore,dispose,flushNotes:ids=>notes.flush(ids)});

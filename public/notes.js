@@ -86,5 +86,5 @@ export function installNotes({api,getCurrent,toast}) {
   function refresh(){if(target&&selected()!==target)target=null;controls();}
   window.addEventListener('beforeunload',event=>{if([...records.values()].some(r=>r.dirty)){event.preventDefault();event.returnValue='';}});
   document.addEventListener('keydown',event=>{if(editing&&event.key==='Escape'&&!document.querySelector('dialog[open]')){finish(true);viewing();}});
-  return {wrap,refresh,viewing,beforeRender:()=>finish()};
+  return {wrap,refresh,viewing,beforeRender:()=>finish(),flush:async ids=>{finish();const values=ids.map(id=>records.get(id)).filter(Boolean);await Promise.all(values.map(v=>v.chain));if(values.some(v=>v.dirty||v.error))throw Error('메모 저장을 완료한 뒤 내보내 주세요. 메모 도구에서 다시 저장할 수 있습니다.');}};
 }
