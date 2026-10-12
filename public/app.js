@@ -5,7 +5,8 @@ const $ = id => document.getElementById(id);
 const escape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 let state, listId, currentId, page = 1, pages = 0, zoom = 1, documentData, token = 0, rendererPromise, nameMode, busy = false, toastTimer;
 let standaloneScore = null;
-let favoritesOnly = false;
+let libraryFilter = 'all', navigationTab = 'queue', thumbnailKey = '', thumbnailGeneration = 0;
+let thumbnailObserver;
 let rotated = false, beforeRotation = null;
 let spread = localStorage.getItem('on-eum-spread') === '2';
 let viewMode = localStorage.getItem('on-eum-view-mode') || 'pages';
@@ -49,6 +50,46 @@ function refreshPreviews(container) {
     });
   }
 }
+function activeScore() { const id=standaloneScore?.id || scoreOf(list()?.items.find(i=>i.id===currentId))?.id; return state?.scores.find(s=>s.id===id); }
+function refreshNavigation() {
+  const score=activeScore(), marked=Boolean(score?.bookmarks?.includes(page));
+  $('bookmark-page').disabled=!documentData;
+  $('bookmark-page').setAttribute('aria-pressed',String(marked));
+  $('bookmark-page').title=marked?'현재 페이지 책갈피 해제':'현재 페이지 책갈피';
+  if(navigationTab==='queue') return;
+  const key=`${score?.id}:${pages}:${navigationTab}:${score?.bookmarks?.join(',')}`;
+  if(key!==thumbnailKey) {
+    thumbnailKey=key; const generation=++thumbnailGeneration; thumbnailObserver?.disconnect();
+    const selected=navigationTab==='bookmarks'?(score?.bookmarks||[]).filter(p=>p<=pages):Array.from({length:pages},(_,i)=>i+1);
+    $('page-panel-title').textContent=score?`${score.title} · ${navigationTab==='bookmarks'?'책갈피':'전체 페이지'}`:'악보를 먼저 열어주세요';
+    $('page-thumbnails').innerHTML=selected.length?selected.map(p=>`<button class="page-thumbnail" data-jump-page="${p}" aria-label="${p}페이지로 이동"><span class="thumbnail-paper">${p}</span><span>${p}페이지${score.bookmarks?.includes(p)?' · ◆':''}</span></button>`).join(''):'<p class="dialog-note">'+(score?'저장한 책갈피가 없습니다. 악보 위의 책갈피 아이콘을 눌러주세요.':'보관함이나 콘티에서 악보를 선택하세요.')+'</p>';
+    let queue=Promise.resolve();
+    thumbnailObserver=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;thumbnailObserver.unobserve(entry.target);queue=queue.then(async()=>{
+      if(generation!==thumbnailGeneration || !entry.target.isConnected)return;
+      let data;
+      try {
+        data=await loadScore(score); if(generation!==thumbnailGeneration)return;
+        const n=Number(entry.target.dataset.jumpPage), paper=entry.target.querySelector('.thumbnail-paper');
+        if(data.kind==='pdf') { const pdfPage=await data.doc.getPage(n), base=pdfPage.getViewport({scale:1}), viewport=pdfPage.getViewport({scale:150/base.width}), canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;await pdfPage.render({canvasContext:canvas.getContext('2d'),viewport}).promise;if(generation===thumbnailGeneration)paper.replaceChildren(canvas); }
+        else if(data.kind==='image') {const img=new Image();img.src=data.img.src;img.alt='';paper.replaceChildren(img);}
+        else {const svg=data.doc.renderToSVG(n); const img=new Image();img.alt='';img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);paper.replaceChildren(img);}
+      } catch { /* Number remains available even when a thumbnail cannot render. */ }
+      finally {dispose(data);}
+    });}}, {root:$('page-thumbnails'),rootMargin:'100px'});
+    $('page-thumbnails').querySelectorAll('[data-jump-page]').forEach(el=>thumbnailObserver.observe(el));
+  }
+  $('page-thumbnails').querySelectorAll('[data-jump-page]').forEach(el=>el.setAttribute('aria-current',String(Number(el.dataset.jumpPage)===page)));
+}
+function setNavigation(tab) {
+  navigationTab=tab;thumbnailKey='';thumbnailGeneration++;thumbnailObserver?.disconnect();
+  $('queue-panel').hidden=tab!=='queue';$('page-panel').hidden=tab==='queue';
+  for(const value of ['queue','pages','bookmarks']) $('nav-'+value).setAttribute('aria-pressed',String(tab===value));
+  refreshNavigation();
+}
+for(const tab of ['queue','pages','bookmarks']) $('nav-'+tab).onclick=()=>setNavigation(tab);
+$('bookmark-page').onclick=()=>{const score=activeScore(), target=page; if(!score||!documentData)return;guarded(async()=>{const latest=state.scores.find(s=>s.id===score.id);const saved=await api(`/api/scores/${score.id}/bookmarks/${target}`,'PUT',{bookmarked:!latest.bookmarks?.includes(target)});state.scores=state.scores.map(s=>s.id===saved.id?saved:s);refreshNavigation();toast(saved.bookmarks.includes(target)?`${target}페이지 책갈피를 저장했습니다.`:`${target}페이지 책갈피를 해제했습니다.`);});};
+$('page-thumbnails').onclick=e=>{const button=e.target.closest('[data-jump-page]');if(!button||!documentData)return;const target=Number(button.dataset.jumpPage), score=activeScore();if(viewMode!=='pages'){page=target;scrollToPage(page);updateControls();saveProgress();}else selectItem(currentId,{page:target,zoom},standaloneScore?score:null);};
+
 function drawLists() {
   $('playlist').innerHTML = state.playlists.map(p => `<option value="${p.id}">${escape(p.name)}</option>`).join(''); $('playlist').value = listId;
   const items = list().items;
@@ -57,6 +98,7 @@ function drawLists() {
   updateControls(); refreshPreviews($('queue'));
 }
 function updateControls() {
+  refreshNavigation();
   const index = currentIndex();
   $('prev-page').disabled = !documentData || page <= 1;
   $('next-page').disabled = !documentData || page + (isSpread() ? 1 : 0) >= pages;
@@ -75,10 +117,14 @@ function updateControls() {
 }
 function drawLibrary() {
   const q = $('search').value.trim().toLocaleLowerCase();
-  const scores = state.scores.filter(s => s.title.toLocaleLowerCase().includes(q) && (!favoritesOnly || s.favorite));
-  $('library-all').setAttribute('aria-pressed',String(!favoritesOnly));
-  $('library-favorites').setAttribute('aria-pressed',String(favoritesOnly));
-  $('library-items').innerHTML = scores.length ? scores.map(s => `<div class="library-row"><button class="favorite-toggle" data-favorite="${s.id}" aria-pressed="${Boolean(s.favorite)}" aria-label="${escape(s.title)} 즐겨찾기" title="${s.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button><div class="document-cover" data-preview="${s.id}" aria-hidden="true"><span>${{pdf:"PDF",image:"IMAGE",musicxml:"MUSICXML"}[s.kind]}</span><div class="cover-staves">𝄞<br>──────<br>──────<br>──────</div></div><div class="library-info"><strong>${escape(s.title)}</strong><small>${{pdf:'PDF',image:'이미지',musicxml:'MusicXML'}[s.kind]} · ${(s.bytes / 1024 / 1024).toFixed(1)} MB · 기기에 저장됨</small></div><div class="library-actions"><button data-view="${s.id}">악보 보기</button><button data-add="${s.id}">＋ 담기</button></div></div>`).join('') : '<p class="dialog-note">'+ (q ? '검색 결과가 없습니다.' : favoritesOnly ? '즐겨찾는 악보가 없습니다. 전체 악보에서 별표를 눌러주세요.' : '아직 악보가 없습니다. 다운로드한 파일을 가져오세요.') +'</p>';
+  const scores = state.scores.filter(s => s.title.toLocaleLowerCase().includes(q) && (libraryFilter==='all' || libraryFilter==='favorites' && s.favorite || libraryFilter==='recent' && s.lastOpenedAt || libraryFilter==='unfiled' && !s.folderId || s.folderId===libraryFilter));
+  if(libraryFilter==='recent') scores.sort((a,b)=>b.lastOpenedAt.localeCompare(a.lastOpenedAt));
+  for(const id of ['all','favorites','recent','unfiled']) $('library-'+id).setAttribute('aria-pressed',String(libraryFilter===id));
+  $('library-folders').innerHTML=(state.folders||[]).map(f=>`<button data-folder-filter="${f.id}" aria-pressed="${libraryFilter===f.id}">▱ ${escape(f.name)}</button>`).join('');
+  const folder=(state.folders||[]).find(f=>f.id===libraryFilter);
+  $('library-heading').textContent=folder?.name || {all:'전체 악보',favorites:'즐겨찾기',recent:'최근 열어본 악보',unfiled:'미분류'}[libraryFilter];
+  $('folder-delete').hidden=!folder;
+  $('library-items').innerHTML = scores.length ? scores.map(s => `<div class="library-row"><button class="favorite-toggle" data-favorite="${s.id}" aria-pressed="${Boolean(s.favorite)}" aria-label="${escape(s.title)} 즐겨찾기" title="${s.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button><div class="document-cover" data-preview="${s.id}" aria-hidden="true"><span>${{pdf:"PDF",image:"IMAGE",musicxml:"MUSICXML"}[s.kind]}</span><div class="cover-staves">𝄞<br>──────<br>──────<br>──────</div></div><div class="library-info"><strong>${escape(s.title)}</strong><small>${{pdf:'PDF',image:'이미지',musicxml:'MusicXML'}[s.kind]} · ${(s.bytes / 1024 / 1024).toFixed(1)} MB · 기기에 저장됨</small></div><label class="score-folder"><span class="sr-only">${escape(s.title)} 폴더</span><select data-score-folder="${s.id}"><option value="">미분류</option>${(state.folders||[]).map(f=>`<option value="${f.id}" ${s.folderId===f.id?'selected':''}>${escape(f.name)}</option>`).join('')}</select></label><div class="library-actions"><button data-view="${s.id}">악보 보기</button><button data-add="${s.id}">＋ 담기</button></div></div>`).join('') : '<p class="dialog-note">'+ (q ? '검색 결과가 없습니다.' : libraryFilter==='favorites' ? '즐겨찾는 악보가 없습니다. 전체 악보에서 별표를 눌러주세요.' : '이곳에 표시할 악보가 없습니다. 전체 악보에서 확인하거나 파일을 가져오세요.') +'</p>';
   refreshPreviews($('library-items'));
 }
 
@@ -145,6 +191,7 @@ async function selectItem(id, saved, directScore = null) {
     loaded = await loadScore(score);
     if (token !== myToken) { dispose(loaded); return; }
     documentData = loaded; pages = loaded.count; page = Math.min(page, pages); if (isSpread()) page = Math.floor((page-1)/2)*2+1; await renderPage(myToken); saveProgress();
+    guarded(async()=>{const saved=await api(`/api/scores/${score.id}/opened`,'POST');state.scores=state.scores.map(s=>s.id===saved.id?saved:s);});
   } catch (error) {
     if (token !== myToken) return;
     dispose(loaded); documentData = null; updateControls();
@@ -208,12 +255,17 @@ function activateList(id) { listId = id; localStorage.setItem('on-eum-list',id);
 $('library-open').onclick = $('add-song').onclick = $('first-import').onclick = openLibrary;
 $('library-close').onclick = () => $('library-dialog').close();
 $('search').oninput = drawLibrary;
-$('library-all').onclick = () => { favoritesOnly=false; drawLibrary(); };
-$('library-favorites').onclick = () => { favoritesOnly=true; drawLibrary(); };
+for(const id of ['all','favorites','recent','unfiled']) $('library-'+id).onclick=()=>{libraryFilter=id; drawLibrary();};
+$('library-folders').onclick=e=>{const button=e.target.closest('[data-folder-filter]'); if(button){libraryFilter=button.dataset.folderFilter;drawLibrary();}};
+$('folder-new').onclick=()=>{$('folder-form').hidden=false;$('folder-name').focus();};
+$('folder-cancel').onclick=()=>{$('folder-form').hidden=true;};
+$('folder-form').onsubmit=e=>{e.preventDefault();guarded(async()=>{const folder=await api('/api/folders','POST',{name:$('folder-name').value});(state.folders||=[]).push(folder);libraryFilter=folder.id;$('folder-name').value='';$('folder-form').hidden=true;drawLibrary();});};
+$('folder-delete').onclick=()=>guarded(async()=>{const id=libraryFilter;await api('/api/folders/'+id,'DELETE');state.folders=state.folders.filter(f=>f.id!==id);state.scores=state.scores.map(s=>s.folderId===id?{...s,folderId:null}:s);libraryFilter='unfiled';drawLibrary();$('library-status').textContent='폴더를 해제했습니다. 악보는 미분류에 그대로 보관됩니다.';});
+$('library-items').onchange=e=>{const select=e.target.closest('[data-score-folder]');if(select)guarded(async()=>{const saved=await api('/api/scores/'+select.dataset.scoreFolder+'/organization','PUT',{folderId:select.value||null});state.scores=state.scores.map(s=>s.id===saved.id?saved:s);drawLibrary();});};
 $('files').onchange = () => guarded(async () => {
   const files = [...$('files').files]; if (!files.length) return;
   $('library-status').textContent = '파일을 기기에 복사하고 있습니다…';
-  try { const data = new FormData(); files.forEach(file => data.append('files',file)); const added = await api('/api/scores','POST',data); state.scores.push(...added.filter(s => !state.scores.some(old => old.id === s.id))); $('search').value = ''; drawLibrary(); $('library-status').textContent = `${added.length}개 파일을 보관했습니다. ‘담기’를 눌러 콘티에 추가하세요.`; }
+  try { const data = new FormData(); files.forEach(file => data.append('files',file)); const added = await api('/api/scores','POST',data); state.scores.push(...added.filter(s => !state.scores.some(old => old.id === s.id))); $('search').value = ''; libraryFilter='all'; drawLibrary(); $('library-status').textContent = `${added.length}개 파일을 보관했습니다. ‘담기’를 눌러 콘티에 추가하세요.`; }
   catch (e) { $('library-status').textContent = e.message; throw e; } finally { $('files').value = ''; }
 });
 $('library-items').onclick = e => { const favorite=e.target.closest('[data-favorite]'); if(favorite) { guarded(async()=>{ const score=state.scores.find(s=>s.id===favorite.dataset.favorite); const saved=await api(`/api/scores/${score.id}/favorite`,'PUT',{favorite:!score.favorite}); state.scores=state.scores.map(s=>s.id===saved.id?saved:s); drawLibrary(); }); return; } const view = e.target.closest('[data-view]'); if (view) { const score = state.scores.find(s => s.id === view.dataset.view); $('library-dialog').close(); selectItem(null, undefined, score); return; } const button = e.target.closest('[data-add]'); if (button) guarded(() => addScore(button.dataset.add)); };

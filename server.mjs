@@ -68,6 +68,38 @@ export function createApp(dataDir = process.env.SCORE_DATA_DIR || path.join(root
   });
   app.use(express.json({ limit: '1mb' }));
   app.get('/api/state', (_req, res) => res.json(state));
+  state.folders ||= [];
+  app.post('/api/folders', (req,res) => {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name || name.length > 100) return res.status(400).json({error:'폴더 이름을 1~100자로 입력해 주세요.'});
+    const folder = {id:randomUUID(),name}; save({...state,folders:[...state.folders,folder]}); res.status(201).json(folder);
+  });
+  app.delete('/api/folders/:id', (req,res) => {
+    if (!state.folders.some(f=>f.id===req.params.id)) return res.status(404).json({error:'폴더를 찾을 수 없습니다.'});
+    save({...state,folders:state.folders.filter(f=>f.id!==req.params.id),scores:state.scores.map(s=>s.folderId===req.params.id?{...s,folderId:null}:s)});
+    res.json({ok:true});
+  });
+  app.put('/api/scores/:id/organization', (req,res) => {
+    const score=state.scores.find(s=>s.id===req.params.id);
+    if (!score) return res.status(404).json({error:'악보를 찾을 수 없습니다.'});
+    const {folderId}=req.body;
+    if (folderId!==null && !state.folders.some(f=>f.id===folderId)) return res.status(400).json({error:'폴더를 찾을 수 없습니다.'});
+    const updated={...score,folderId}; save({...state,scores:state.scores.map(s=>s.id===score.id?updated:s)}); res.json(updated);
+  });
+  app.post('/api/scores/:id/opened', (req,res) => {
+    const score=state.scores.find(s=>s.id===req.params.id);
+    if (!score) return res.status(404).json({error:'악보를 찾을 수 없습니다.'});
+    const updated={...score,lastOpenedAt:new Date().toISOString()}; save({...state,scores:state.scores.map(s=>s.id===score.id?updated:s)}); res.json(updated);
+  });
+  app.put('/api/scores/:id/bookmarks/:page', (req,res) => {
+    const score=state.scores.find(s=>s.id===req.params.id), page=Number(req.params.page);
+    if (!score) return res.status(404).json({error:'악보를 찾을 수 없습니다.'});
+    if (!Number.isInteger(page) || page<1 || page>10000 || typeof req.body.bookmarked!=='boolean') return res.status(400).json({error:'책갈피 페이지가 올바르지 않습니다.'});
+    const bookmarks=(score.bookmarks||[]).filter(p=>p!==page);
+    if(req.body.bookmarked) bookmarks.push(page);
+    const updated={...score,bookmarks:bookmarks.sort((a,b)=>a-b)};
+    save({...state,scores:state.scores.map(s=>s.id===score.id?updated:s)}); res.json(updated);
+  });
   app.get('/api/updates', (_req,res) => {
     const marker=path.join(dataDir,'active-release.json');
     const active=fs.existsSync(marker)?JSON.parse(fs.readFileSync(marker,'utf8')):null;
