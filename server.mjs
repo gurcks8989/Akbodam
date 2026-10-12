@@ -1,4 +1,5 @@
 import express from 'express';
+import { installNotes } from './notes-store.mjs';
 import { createPhoneTransfer } from './phone-transfer.mjs';
 import multer from 'multer';
 import fs from 'node:fs';
@@ -74,6 +75,7 @@ export function createApp(dataDir = process.env.SCORE_DATA_DIR || path.join(root
   app.get('/api/phone',(_req,res)=>res.json({...phone.status(),addresses:phone.addresses()}));
   app.post('/api/phone',async(req,res)=>{try{res.json(await phone.start(req.body.address));}catch(e){res.status(400).json({error:e.code?'전송을 시작하지 못했습니다. Wi-Fi 연결과 방화벽을 확인해 주세요.':e.message});}});
   app.delete('/api/phone',(_req,res)=>{phone.stop();res.json({active:false});});
+  installNotes(app,{dataDir,hasScore:id=>state.scores.some(s=>s.id===id)});
   app.get('/api/state', (_req, res) => res.json(state));
   state.folders ||= [];
   app.post('/api/folders', (req,res) => {

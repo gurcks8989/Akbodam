@@ -1,3 +1,4 @@
+import { installNotes } from '/notes.js';
 import { installPhoneTransfer } from '/phone-transfer.js';
 import { installQueueDrag } from '/queue-drag.js';
 import * as pdfjs from '/vendor/pdf/build/pdf.mjs';
@@ -91,6 +92,7 @@ for(const tab of ['queue','pages','bookmarks']) $('nav-'+tab).onclick=()=>setNav
 $('bookmark-page').onclick=()=>{const score=activeScore(), target=page; if(!score||!documentData)return;guarded(async()=>{const latest=state.scores.find(s=>s.id===score.id);const saved=await api(`/api/scores/${score.id}/bookmarks/${target}`,'PUT',{bookmarked:!latest.bookmarks?.includes(target)});state.scores=state.scores.map(s=>s.id===saved.id?saved:s);refreshNavigation();toast(saved.bookmarks.includes(target)?`${target}페이지 책갈피를 저장했습니다.`:`${target}페이지 책갈피를 해제했습니다.`);});};
 $('page-thumbnails').onclick=e=>{const button=e.target.closest('[data-jump-page]');if(!button||!documentData)return;const target=Number(button.dataset.jumpPage), score=activeScore();if(viewMode!=='pages'){page=target;scrollToPage(page);updateControls();saveProgress();}else selectItem(currentId,{page:target,zoom},standaloneScore?score:null);};
 
+const notes=installNotes({api,getCurrent:()=>{const score=activeScore();return score&&documentData?{scoreId:score.id,page}:null;},toast});
 function drawLists() {
   $('playlist').innerHTML = state.playlists.map(p => `<option value="${p.id}">${escape(p.name)}</option>`).join(''); $('playlist').value = listId;
   const items = list().items;
@@ -99,7 +101,7 @@ function drawLists() {
   updateControls(); refreshPreviews($('queue'));
 }
 function updateControls() {
-  refreshNavigation();
+  refreshNavigation(); notes.refresh();
   const index = currentIndex();
   $('prev-page').disabled = !documentData || page <= 1;
   $('next-page').disabled = !documentData || page + (isSpread() ? 1 : 0) >= pages;
@@ -202,7 +204,7 @@ async function selectItem(id, saved, directScore = null) {
 }
 let renderSerial = 0;
 async function renderPage(expectedToken = token) {
-  if (!documentData) return; const serial = ++renderSerial, targetPage = page;
+  if (!documentData) return; notes.beforeRender(); const serial = ++renderSerial, targetPage = page;
   const concert = viewMode !== 'pages' && !standaloneScore && currentId;
   const entries = concert ? [...list().items] : [null];
   const owned = [];
@@ -239,6 +241,7 @@ async function renderPage(expectedToken = token) {
       el.append(document.importNode(svgDoc.documentElement,true));
     }
     if (expectedToken !== token || serial !== renderSerial) return;
+    el=notes.wrap(el,score.id,targetPage,aspect);
     if(rotated) { const shell = document.createElement('div'); shell.className='rotated-page'; const w=parseFloat(el.style.width); shell.style.width=(w/aspect)+'px'; shell.style.height=w+'px'; shell.append(el); el=shell; }
     el.dataset.page = String(targetPage); if(entry) { el.dataset.itemId = entry.id; el.dataset.pageCount = String(data.count); el.setAttribute('aria-label',`${score.title} ${targetPage}페이지`); } elements.push(el);
     }
@@ -360,6 +363,7 @@ $('performance').onclick = async () => {
   beforePerformance={viewMode,zoom}; viewMode='pages'; zoom=1;
   $('view-mode').value='pages'; $('spread-toggle').disabled=false;
   const savedPage=page;
+  notes.viewing();
   performanceMode = true; document.body.classList.add('performance-mode');
   if (!document.fullscreenElement) { try { await document.documentElement.requestFullscreen(); ownedFullscreen = true; } catch { /* The in-window reading mode remains available. */ } }
   await selectItem(currentId,{page:savedPage,zoom:1},standaloneScore); showPerformanceControls(); $('stage').focus();

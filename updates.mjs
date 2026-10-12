@@ -39,6 +39,7 @@ export function backupData(dataDir,state) {
   try {
     fs.writeFileSync(path.join(destination,'library.json'),JSON.stringify(state,null,2));
     if(fs.existsSync(path.join(dataDir,'scores'))) fs.cpSync(path.join(dataDir,'scores'),path.join(destination,'scores'),{recursive:true});
+    if(fs.existsSync(path.join(dataDir,'notes'))) fs.cpSync(path.join(dataDir,'notes'),path.join(destination,'notes'),{recursive:true});
     fs.writeFileSync(path.join(destination,'backup.json'),JSON.stringify({createdAt:new Date().toISOString(),scores:state.scores.length,playlists:state.playlists.length},null,2));
     return {path:destination,createdAt:new Date().toISOString()};
   } catch(error) { fs.rmSync(destination,{recursive:true,force:true}); throw error; }
