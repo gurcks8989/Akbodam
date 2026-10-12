@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { repositoryUrl, compareVersions, backupData, prepareRelease } from '../updates.mjs';
+import { repositoryUrl, compareVersions, backupData, prepareRelease, releaseFromTags } from '../updates.mjs';
 import { createApp } from '../server.mjs';
 test('update repository validation and numeric stable-version ordering',()=>{
  assert.equal(repositoryUrl('https://github.com/example/akbodam.git'),'https://github.com/example/akbodam');
@@ -41,4 +41,13 @@ test('managed launcher restores the previous app if the new release fails to sta
   await new Promise((resolve,reject)=>{ let out=''; const timer=setTimeout(()=>reject(Error('recovery timed out')),10000);child.stdout.on('data',b=>{out+=b;if(out.includes('악보대:')){clearTimeout(timer);resolve();}});child.once('exit',()=>{clearTimeout(timer);reject(Error('launcher stopped'));});});
   const marker=JSON.parse(fs.readFileSync(path.join(dir,'active-release.json')));assert.equal(marker.current,root);assert.equal(marker.previous,null);
  } finally {child.kill('SIGTERM');await exited;fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('renumbered releases exclude archive tags and allow explicit numbering migration',()=>{
+ const sha='a'.repeat(40),remote='https://github.com/example/akbodam';
+ const refs=[`${sha} refs/tags/v0.1.0`,`${sha} refs/tags/v0.1.7`,`${sha} refs/tags/archive/v0.7.0`,`${sha} refs/tags/archive/v0.7.0^{}`].join('\n');
+ const migrated=releaseFromTags(refs,remote,'0.7.0');assert.equal(migrated.latest,'v0.1.7');assert.equal(migrated.available,true);assert.equal(migrated.renumbered,true);
+ assert.equal(releaseFromTags(refs,remote,'0.1.7').available,false);
+ assert.equal(releaseFromTags(refs,remote,'0.1.6').available,true);
+ assert.equal(releaseFromTags(refs,remote,'1.0.0').available,false);
 });

@@ -22,6 +22,9 @@ export async function checkRelease(url,currentVersion) {
   let stdout;
   try { ({stdout}=await exec('git',['ls-remote','--tags',remote+'.git'],{timeout:20000,maxBuffer:2*1024*1024,env:{...process.env,GIT_TERMINAL_PROMPT:'0',GIT_ASKPASS:'/usr/bin/false'}})); }
   catch { throw new Error('저장소를 읽지 못했습니다. 주소·네트워크·비공개 저장소의 Git 인증을 확인해 주세요.'); }
+  return releaseFromTags(stdout,remote,currentVersion);
+}
+export function releaseFromTags(stdout,remote,currentVersion) {
   const tags=new Map();
   for(const line of stdout.trim().split('\n')) {
     const [sha,ref]=line.split(/\s+/); if(!ref) continue;
@@ -31,7 +34,8 @@ export async function checkRelease(url,currentVersion) {
   }
   const tag=[...tags.keys()].sort((a,b)=>compareVersions(b,a))[0];
   if(!tag) return {currentVersion,repository:remote,latest:null,available:false,message:'배포된 정식 버전 태그가 없습니다. v0.1.0 형식의 태그가 필요합니다.'};
-  return {currentVersion,repository:remote,latest:tag,commit:tags.get(tag),available:compareVersions(tag,currentVersion)>0,checkedAt:new Date().toISOString()};
+  const renumbered = compareVersions(tag,currentVersion)<0 && stdout.split('\n').some(line=>line.trim().endsWith('refs/tags/archive/v'+currentVersion.replace(/^v/,'')));
+  return {currentVersion,repository:remote,latest:tag,commit:tags.get(tag),available:compareVersions(tag,currentVersion)>0 || renumbered,renumbered,checkedAt:new Date().toISOString()};
 }
 export function backupData(dataDir,state) {
   const destination=path.join(dataDir,'backups',new Date().toISOString().replace(/[:.]/g,'-'));
